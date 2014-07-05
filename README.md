@@ -7,7 +7,7 @@ Moderation Bot for /r/DeepIntoYouTube
 
 This simple bot runs on python 2.7. It requires the gdata and praw libraries. It was written for use on windows, but the code should be portable to linux without change.
 
-This script pulls the newest 100 submissions and checks the URL against YouTube data to see if the video has been uploaded in less than 4.7 months or has been viewed more than 200,000 times and removes them if they meet thatcriteria. 
+This script repeats a loop where it pulls the newest 100 submissions and checks the URL against YouTube data to see if the video has been uploaded in less than 4.7 months or has been viewed more than 200,000 times and removes them if they meet that criteria. 
 
 * http://www.reddit.com/r/DeepIntoYouTube/
 * https://praw.readthedocs.org/en/v2.1.16/
