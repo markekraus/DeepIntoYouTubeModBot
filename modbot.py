@@ -78,7 +78,6 @@ while True:
 				problem = 1
 			if problem == 1:
 				pprint(submission.url)
-				pprint(submission.url)
 				pprint(suburl.hostname)
 				pprint(seconds)
 				print 'Video published on: %s ' % entry.published.text
