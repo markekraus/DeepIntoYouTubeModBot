@@ -1,7 +1,7 @@
-DeepIntoYouTubemodBot
+DeepIntoYouTubeModBot
 =====================
 
-Moderation Bot for /r/DeepIntoyouTube
+Moderation Bot for /r/DeepIntoYouTube
 
 # Intro
 
