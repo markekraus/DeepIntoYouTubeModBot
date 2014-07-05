@@ -18,6 +18,28 @@ yt_service.source = '<snip>'
 yt_service.ProgrammaticLogin()
 
 
+def video_id(value):
+    """
+    Examples:
+    - http://youtu.be/SA2iWivDJiE
+    - http://www.youtube.com/watch?v=_oPAwA_Udwc&feature=feedu
+    - http://www.youtube.com/embed/SA2iWivDJiE
+    - http://www.youtube.com/v/SA2iWivDJiE?version=3&amp;hl=en_US
+    """
+    query = urlparse(value)
+    if query.hostname == 'youtu.be':
+        return query.path[1:]
+    if query.hostname in ('www.youtube.com', 'youtube.com'):
+        if query.path == '/watch':
+            p = parse_qs(query.query)
+            return p['v'][0]
+        if query.path[:7] == '/embed/':
+            return query.path.split('/')[2]
+        if query.path[:3] == '/v/':
+            return query.path.split('/')[2]
+    # fail?
+    return None
+	
 r = praw.Reddit('PRAW /r/deepintoyoutube modbot by /u/markekraus 0.1. '
 				'URL: https://github.com/markekraus/DeepIntoYouTubemodBot')
 r.login()
@@ -33,16 +55,16 @@ while True:
 		suburl = urlparse(submission.url)
 		if any(suburl.hostname in s for s in yt_hostnames):
 			suburlqs = parse_qs(suburl.query)
+			
 			try:
-				entry = yt_service.GetYouTubeVideoEntry(video_id=suburlqs['v'][0])
+				#entry = yt_service.GetYouTubeVideoEntry(video_id=suburlqs['v'][0])
+				entry = yt_service.GetYouTubeVideoEntry(video_id=video_id(submission.url))
 			except:
-				try:
-					entry = yt_service.GetYouTubeVideoEntry(suburl.query)
-				except:
-					#print 'poorly formated URL'
-					#pprint(submission.url)
-					#pprint(submission.permalink)
-					break
+				#print 'poorly formated URL'
+				#pprint(submission.url)
+				#pprint(submission.permalink)
+				#pprint(suburl.query)
+				break
 			_tmp = time.strptime(entry.published.text, '%Y-%m-%dT%H:%M:%S.000Z')
 			ptime = datetime.datetime(*_tmp[:6])
 			now = datetime.datetime.now()
@@ -58,7 +80,6 @@ while True:
 				pprint(submission.url)
 				pprint(submission.url)
 				pprint(suburl.hostname)
-				pprint(suburlqs['v'][0])
 				pprint(seconds)
 				print 'Video published on: %s ' % entry.published.text
 				print 'Video view count: %s' % entry.statistics.view_count
