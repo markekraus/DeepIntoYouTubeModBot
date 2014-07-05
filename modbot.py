@@ -41,7 +41,7 @@ def video_id(value):
     # fail?
     return None
 	
-r = praw.Reddit('PRAW /r/deepintoyoutube modbot by /u/markekraus 0.1. '
+r = praw.Reddit('PRAW /r/deepintoyoutube modbot by /u/markekraus 1.0. '
 				'URL: https://github.com/markekraus/DeepIntoYouTubemodBot')
 r.login()
 while True:
