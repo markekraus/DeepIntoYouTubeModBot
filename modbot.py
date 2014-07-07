@@ -78,7 +78,7 @@ while True:
 						print '!!! Video is newer than 4.7 months !!!!'
 						modcomment = submission.add_comment('Your submission violates rule #1, no videos uploaded to YouTube in the past 5 months are allowed. Your post has been removed automatically. If you believe it has been removed in error, please [message the moderators](http://www.reddit.com/message/compose?to=%2Fr%2FDeepIntoYouTube).')
 						problem = 1
-					if float(entry.statistics.view_count) > 200000:
+					if hasattr(entry.statistics, 'view_count') and float(entry.statistics.view_count) > 200000:
 						print '!!! Video has been viewed more than 200000 times !!!!'
 						modcomment = submission.add_comment('Your submission violates rule #4, no YouTube videos with greater than 200,000 views are allowed. Your post has been removed automatically. If you believe it has been removed in error, please [message the moderators](http://www.reddit.com/message/compose?to=%2Fr%2FDeepIntoYouTube).')
 						problem = 1
@@ -97,9 +97,9 @@ while True:
 					pprint(submission.hidden)
 					modcomment.distinguish(as_made_by='mod')
 					submission.remove(spam=False)
-					already_done.append(submission.id)
 					print 'Submission removed!'
 					print ''							
+			already_done.append(submission.id)
 	loopend = time.time()
 	sleepfor = max(0.0, 30.0 - (loopend - loopstart))
 	time.sleep(sleepfor)
