@@ -33,3 +33,11 @@ This script repeats a loop where it pulls the newest 100 submissions and checks 
 4. Sit back and watch the output
 
 To stop execution, kill the process or press `Ctrl+C`
+
+# Checks
+
+1. Checks if video is a valid YouTube and peoperly fomated URL
+2. Checks if video is in the top 100 all time submissions
+3. Checks if video has already been posted in past 3 months
+4. Checks if the video has over 200,000 views
+5. Checks if the video has been uploaded in the past 4.7 months
