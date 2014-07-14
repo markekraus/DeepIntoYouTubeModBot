@@ -7,7 +7,7 @@ from urlparse import parse_qs
 import gdata.youtube
 import gdata.youtube.service
 
-yt_hostnames = ['youtube.com', 'www.youtube.com', 'youtu.be']
+yt_hostnames = ['youtube.com', 'www.youtube.com', 'youtu.be', 'm.youtube.com']
 
 yt_service = gdata.youtube.service.YouTubeService()
 yt_service.ssl = True
@@ -31,7 +31,7 @@ def video_id(value):
 	query = urlparse(value)
 	if query.hostname == 'youtu.be':
 		return query.path[1:]
-	if query.hostname in ('www.youtube.com', 'youtube.com'):
+	if query.hostname in yt_hostnames:
 		if query.path == '/watch':
 			p = parse_qs(query.query)
 			return p['v'][0]
@@ -49,11 +49,12 @@ def video_id(value):
 	# fail?
 	return None
 	
-r = praw.Reddit('PRAW /r/deepintoyoutube modbot by /u/markekraus 2.0. '
+r = praw.Reddit('PRAW /r/deepintoyoutube modbot by /u/markekraus 2.01. '
 				'URL: https://github.com/markekraus/DeepIntoYouTubemodBot')
 r.login()
 lasttopget = 0
 topsubmissionvids = []
+topsubmissionsids = []
 
 while True:
 	loopstart = time.time()
@@ -68,6 +69,7 @@ while True:
 		else:
 			lasttopget = time.time()
 			topsubmissionvids = []
+			topsubmissionsids = []
 			for topsubmission in topsubmissions:
 				try:
 					topytvid=video_id(topsubmission.url)
@@ -76,7 +78,7 @@ while True:
 				else:
 					if topytvid != None:
 						topsubmissionvids.append(topytvid)
-			pprint(topsubmissionvids)
+						topsubmissionsids.append(topsubmission.id)
 			print 'Top submissions grabbed!'
 			print ''
 		sleepfor = max(0.0, 30.0 - (time.time() - loopstart))
@@ -96,6 +98,9 @@ while True:
 					print '!!! Selfpost !!!!'
 					print 'Permalink:' 
 					pprint(submission.permalink)
+					pprint(submission.title)
+					pprint(submission.author)
+					print 'time: ' + time.strftime("%c")
 					print ''
 				else:
 					suburl = urlparse(submission.url)
@@ -107,7 +112,7 @@ while True:
 							reasons.append('* The URL you submitted appears to be poorly formated.')
 							print ''
 						else:
-							if ytvid in topsubmissionvids:
+							if ytvid in topsubmissionvids and submission.id not in topsubmissionsids:
 								print '!!!! Repost of a top 100 submission !!!'
 								reasons.append('* This video is in the [top 100](http://www.reddit.com/r/DeepIntoYouTube/top/?sort=top&t=all) submission of all time in this sub. ')
 							try:
@@ -160,16 +165,22 @@ while True:
 						modcommenttxt += "\n\nIf you believe it has been removed in error, please [message the moderators](http://www.reddit.com/message/compose?to=%2Fr%2FDeepIntoYouTube)."
 						pprint(submission.url)
 						pprint(submission.permalink)
+						pprint(submission.title)
 						pprint(submission.author)
 						print 'Video published on: %s ' % entry.published.text
 						if hasattr(entry.statistics, 'view_count'):
 							print 'Video view count: %s' % entry.statistics.view_count
-						modcomment = submission.add_comment(modcommenttxt)
-						modcomment.distinguish(as_made_by='mod')
-						submission.remove(spam=False)
-						print 'Submission removed!'
-						print 'time: ' + time.strftime("%c")
-						print ''
+						try:
+							modcomment = submission.add_comment(modcommenttxt)
+							modcomment.distinguish(as_made_by='mod')
+							submission.remove(spam=False)
+						except:
+							print '** Comment or removal failed! link possibly deleted by user during checks.'
+							print ''
+						else:
+							print 'Submission removed!'
+							print 'time: ' + time.strftime("%c")
+							print ''
 				already_done.append(submission.id)
 	loopend = time.time()
 	sleepfor = max(0.0, 30.0 - (loopend - loopstart))
