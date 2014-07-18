@@ -24,6 +24,7 @@ def video_id(value):
 	Examples:
 	- http://youtu.be/SA2iWivDJiE
 	- http://www.youtube.com/watch?v=_oPAwA_Udwc&feature=feedu
+	- http://www.youtube.com/movie?v=_oPAwA_Udwc&feature=feedu
 	- http://www.youtube.com/attribution_link?a=AbE6fYtNaa4&u=%2Fwatch%3Fv%3DNbyHNASFi6U%26feature%3Dshare
 	- http://www.youtube.com/embed/SA2iWivDJiE
 	- http://www.youtube.com/v/SA2iWivDJiE?version=3&amp;hl=en_US
@@ -32,7 +33,7 @@ def video_id(value):
 	if query.hostname == 'youtu.be':
 		return query.path[1:]
 	if query.hostname in yt_hostnames:
-		if query.path == '/watch':
+		if query.path == '/watch' or query.path == '/movie':
 			p = parse_qs(query.query)
 			return p['v'][0]
 		if query.path == '/attribution_link':
@@ -40,16 +41,14 @@ def video_id(value):
 			p = urlparse(p['u'][0])
 			p = parse_qs(p.query)
 			return p['v'][0]
-		if 1 == 1:
-			print 'WTF??'
 		if query.path[:7] == '/embed/':
 			return query.path.split('/')[2]
 		if query.path[:3] == '/v/':
 			return query.path.split('/')[2]
 	# fail?
-	return None
+	raise ValueError('No video ID could be extracted from URL %s' % value)
 	
-r = praw.Reddit('PRAW /r/deepintoyoutube modbot by /u/markekraus 2.02. '
+r = praw.Reddit('PRAW /r/deepintoyoutube modbot by /u/markekraus 2.03. '
 				'URL: https://github.com/markekraus/DeepIntoYouTubemodBot')
 r.login()
 lasttopget = 0
