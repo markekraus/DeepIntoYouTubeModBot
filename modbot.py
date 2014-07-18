@@ -48,7 +48,7 @@ def video_id(value):
 	# fail?
 	raise ValueError('No video ID could be extracted from URL %s' % value)
 	
-r = praw.Reddit('PRAW /r/deepintoyoutube modbot by /u/markekraus 2.04. '
+r = praw.Reddit('PRAW /r/deepintoyoutube modbot by /u/markekraus 2.05. '
 				'URL: https://github.com/markekraus/DeepIntoYouTubemodBot')
 r.login()
 lasttopget = 0
@@ -186,6 +186,7 @@ while True:
 								print ''
 					already_done.append(submission.id)
 		except:
+			e = sys.exc_info()[0]
 			print '**Main For loop failed: %s' % str(e)
 			print 'time: ' + time.strftime("%c")
 			print ''
