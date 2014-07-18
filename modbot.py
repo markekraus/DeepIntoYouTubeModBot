@@ -48,7 +48,7 @@ def video_id(value):
 	# fail?
 	raise ValueError('No video ID could be extracted from URL %s' % value)
 	
-r = praw.Reddit('PRAW /r/deepintoyoutube modbot by /u/markekraus 2.03. '
+r = praw.Reddit('PRAW /r/deepintoyoutube modbot by /u/markekraus 2.04. '
 				'URL: https://github.com/markekraus/DeepIntoYouTubemodBot')
 r.login()
 lasttopget = 0
@@ -163,13 +163,16 @@ while True:
 							for reason in reasons:
 								modcommenttxt += str(reason) + "\n\n"
 							modcommenttxt += "\n\nIf you believe it has been removed in error, please [message the moderators](http://www.reddit.com/message/compose?to=%2Fr%2FDeepIntoYouTube)."
+							print 'Submission Info:'
 							pprint(submission.url)
 							pprint(submission.permalink)
 							pprint(submission.title)
 							pprint(submission.author)
-							print 'Video published on: %s ' % entry.published.text
-							if hasattr(entry.statistics, 'view_count'):
+							try:
+								print 'Video published on: %s ' % entry.published.text
 								print 'Video view count: %s' % entry.statistics.view_count
+							except:
+								pass
 							try:
 								modcomment = submission.add_comment(modcommenttxt)
 								modcomment.distinguish(as_made_by='mod')
