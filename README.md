@@ -16,6 +16,7 @@ This script repeats a loop where it pulls the newest 100 submissions and checks 
 # Installation
 
 1. Install the gdata and praw python libraries.
+  * `pip install gdata; pip install praw`
 2. Download the `modbot.py` to a directory of your chosing
 3. Modify `modbot.py` and set the following variables
   * `yt_service.developer_key`
