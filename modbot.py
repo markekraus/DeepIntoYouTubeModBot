@@ -1,3 +1,4 @@
+## Import Modules - Start
 import praw
 import time
 import datetime
@@ -6,22 +7,36 @@ from urlparse import urlparse
 from urlparse import parse_qs
 import gdata.youtube
 import gdata.youtube.service
+import sys
+## Import Modules - End
 
-yt_hostnames = ['youtube.com', 'www.youtube.com', 'youtu.be', 'm.youtube.com']
+## Settings - Start
+# This is the name of the modbot config file
+modbotSettingsFile = 'modbot.conf'
+## Settings - End
 
-yt_service = gdata.youtube.service.YouTubeService()
-yt_service.ssl = True
-yt_service.developer_key = '<snip>'
-yt_service.email = '<snip>'
-yt_service.password = '<snip>'
-yt_service.source = '<snip>'
-yt_service.ProgrammaticLogin()
+## Function Definitions - Start
+# Function to load settings file
+def modbotsettings():
+    try:
+        # Try to execfile on the settings file and load them into the globals
+        # this is terrible coding, but I don't feel like making a proper settings function
+        execfile(modbotSettingsFile, globals())
+        return True
+    except:
+        # Failed to load the settings file
+        print '!!!! Syntax error in ' + modbotSettingsFile + ' !!!'
+        return False
 
-already_done = []
+#Load the settings before continuing as they are used by just about everything
+if not modbotsettings():
+    print 'Unable to initilize settings. Exiting.'
+    exit()
 
+# Function to determine the youtube video ID from a URL
 def video_id(value):
     """
-    Examples:
+    Example URL's that can be parsed:
     - http://youtu.be/SA2iWivDJiE
     - http://www.youtube.com/watch?v=_oPAwA_Udwc&feature=feedu
     - http://www.youtube.com/movie?v=_oPAwA_Udwc&feature=feedu
@@ -47,29 +62,69 @@ def video_id(value):
             return query.path.split('/')[2]
     # fail?
     raise ValueError('No video ID could be extracted from URL %s' % value)
-    
-r = praw.Reddit('PRAW /r/deepintoyoutube modbot by /u/markekraus 2.07. '
-                'URL: https://github.com/markekraus/DeepIntoYouTubemodBot')
-r.login()
-lasttopget = 0
-topsubmissionvids = []
-topsubmissionsids = []
 
+## Function Definitions - End
+    
+## API Initializations - Start
+#YouTube API initialization
+try:
+    yt_service = gdata.youtube.service.YouTubeService()
+    yt_service.ssl = True
+    yt_service.developer_key = yt_developer_key
+    yt_service.email = yt_email
+    yt_service.password = yt_password
+    yt_service.source = yt_source
+    yt_service.ProgrammaticLogin()
+except:
+    print '!!!! Unable to login to youtube API !!!'
+    print 'Enable less secure apps if login fails: https://www.google.com/settings/security/lesssecureapps'
+    exit()
+# Reddit API initialization
+try:     
+    r = praw.Reddit(r_praw)
+    r.login(r_user, r_password)
+except:
+    print '!!!! Unable to login to Reddit API !!!'
+    exit()
+## API Initializations - End
+    
+## Variable Initializations - Start
+# Last Time the top submissions were grabbed
+lasttopget = 0
+# List of submission ID's that have already been processes so we can skip them
+already_done = []
+# List of top submission YouTube video IDs
+topsubmissionvids = []
+# List of top submission Reddit IDa
+topsubmissionsids = []
+# list of reasons a submission is being removed
+reasons = []
+## Variable Initializations - End
+
+## Main Loop - Start
 while True:
+    # set the time this loop iteration was started
     loopstart = time.time()
-    subreddit = r.get_subreddit('deepintoyoutube')
-    if lasttopget < loopstart - 86400:
-        print 'Getting top 100 submissions...'
+    # Update the settings
+    modbotsettings()
+    # create the subreddit object
+    subreddit = r.get_subreddit(r_subredit)
+    # If it has been long enough since the last top submission pull, pull them again
+    if lasttopget < loopstart - bot_reloadTopSubsSec:
+        print 'Getting top ' + str(bot_topSubsLimit) + ' submissions...'
         try:
-            topsubmissions = subreddit.get_top_from_all(limit=100)
+            topsubmissions = subreddit.get_top_from_all(limit=bot_topSubsLimit)
         except:
             print '** Failed to get top sumissions'
             print 'time: ' + time.strftime("%c")
             print ''
         else:
+            # Set the last top submission pull tim to now
             lasttopget = time.time()
+            # Blank out the top submissions lists
             topsubmissionvids = []
             topsubmissionsids = []
+            # Fill the top submissions lists
             for topsubmission in topsubmissions:
                 try:
                     topytvid=video_id(topsubmission.url)
@@ -82,20 +137,25 @@ while True:
             print 'Top submissions grabbed!'
             print 'time: ' + time.strftime("%c")
             print ''
-        sleepfor = max(0.0, 30.0 - (time.time() - loopstart))
+        # Take a break before continuing to stay compliant with API rules
+        sleepfor = max(0.0, bot_sleepsec - (time.time() - loopstart))
         time.sleep(sleepfor)
+    # Try to pull the newest submissions
     try:
-        submissions = subreddit.get_new(limit=100)
+                submissions = subreddit.get_new(limit=bot_subsLimit)
     except:
         e = sys.exc_info()[0]
         print '**get_new failed: %s' % str(e)
         print 'time: ' + time.strftime("%c")
         print ''
     else:
+        # Loop through the newest submissions
         try:
             for submission in submissions:
                 reasons = []
+                # Lets check if it's a good post, but only if wqe haven't already checked it before
                 if submission.id not in already_done:
+                    # We don't need to check anything if it is a selfpost, but it's good to see them
                     if submission.is_self:
                         print '!!! Selfpost !!!!'
                         print 'Permalink:' 
@@ -104,40 +164,54 @@ while True:
                         pprint(submission.author)
                         print 'time: ' + time.strftime("%c")
                         print ''
+                    # ok, not a self post, so lets see if it's ok
                     else:
+                        # Create a urlpares object of the submission URL for tests
                         suburl = urlparse(submission.url)
+                        # check if it is an approved URL hostname
                         if any(suburl.hostname in s for s in yt_hostnames):
+                            # Try to grab the YouTube video ID from the URL
                             try:
                                 ytvid=video_id(submission.url)
+                            # Couldn't get a video ID so it must not be a valid URL
                             except:
                                 print '!!!! poorly formated URL !!!'
                                 reasons.append('* The URL you submitted appears to be poorly formated. Only direct links to YouTube videos are allowed. Links to YouTube channels or playlist are prohibited.')
                             else:
+                                # Check if the Youtube Video ID is in the top submissions
+                                # AND make sure this post is not a top post itself
                                 if ytvid in topsubmissionvids and submission.id not in topsubmissionsids:
-                                    print '!!!! Repost of a top 100 submission !!!'
-                                    reasons.append('* This video is in the [top 100](http://www.reddit.com/r/DeepIntoYouTube/top/?sort=top&t=all) submission of all time in this sub. ')
+                                    print '!!!! Repost of a top ' + str(bot_topSubsLimit) + ' submission !!!'
+                                    reasons.append('* This video is in the [top ' + bot_topSubsLimit +'](http://www.reddit.com/r/'+ r_subredit +'/top/?sort=top&t=all) submission of all time in this sub. ')
                                 try:
-                                    sleepfor = max(0.0, 30.0 - (time.time() - loopstart))
+                                    # Take a break before searching for reposts, but only if not enough time since the last search has passed.
+                                    sleepfor = max(0.0, bot_sleepsec - (time.time() - loopstart))
                                     time.sleep(sleepfor)
-                                    searchres = list(r.search('url:"%s"' % str(ytvid) ,  subreddit='deepintoyoutube'))
+                                    # Search the subreddit to see
+                                    searchres = list(r.search('url:"%s"' % str(ytvid) ,  subreddit=r_subredit))
                                 except:
                                     e = sys.exc_info()[0]
                                     print '**Search failed! %s' % str(e)
                                     print 'time: ' + time.strftime("%c")
                                     print ''
                                 else:
+                                    # Check if we found more than 1 instance of this video being posted
                                     if len(list(searchres)) > 1:
-                                        tma = time.time() - 7889230
+                                        # tma is the max age time of reposts
+                                        tma = time.time() - bot_repostMaxAge
+                                        # cycle through the possible repost submissions
                                         for curres in searchres:
+                                            # if the current search result is not the current submission and it is neweer than tma, it is a repost 
                                             if curres.id != submission.id and curres.created_utc > tma:
                                                 print '!!!! Repost !!!'
                                                 print 'previous post:'
                                                 pprint(curres.url)
                                                 pprint(curres.permalink)
                                                 pprint(submission.title)
-                                                reasons.append("* This video has [already been posted in the last 3 months](http://www.reddit.com/r/DeepIntoYouTube/search?q=url%3A%22" + str(ytvid) + "%22&restrict_sr=on).")
+                                                reasons.append("* This video has [already been posted in the last " + bot_repostMaxAgeTxt + "](http://www.reddit.com/r/" + r_subredit + "/search?q=url%3A%22" + str(ytvid) + "%22&restrict_sr=on).")
                                                 break
                                 try:
+                                    # Try to get the YouTube API data for the current submissions video ID
                                     entry = yt_service.GetYouTubeVideoEntry(video_id=ytvid)
                                 except:
                                     print '**Youtube look up for %s failed!' % str(ytvid)
@@ -146,25 +220,36 @@ while True:
                                     print 'time: ' + time.strftime("%c")
                                     print ''
                                 else:
+                                    # Determins the age of the youtube video
                                     _tmp = time.strptime(entry.published.text, '%Y-%m-%dT%H:%M:%S.000Z')
                                     ptime = datetime.datetime(*_tmp[:6])
                                     now = datetime.datetime.now()
                                     tdelta = now - ptime
                                     seconds = tdelta.total_seconds()
-                                    if seconds < 12360000:
-                                        print '!!! Video is newer than 4.7 months !!!!'
-                                        reasons.append('* Your submission violates rule #1, no videos uploaded to YouTube in the past 5 months are allowed. ')
-                                    if hasattr(entry.statistics, 'view_count') and float(entry.statistics.view_count) > 200000:
-                                        print '!!! Video has been viewed more than 200000 times !!!!'
-                                        reasons.append('* Your submission violates rule #2, no YouTube videos with greater than 200,000 views are allowed. ')
+                                    # if the age of the video is less than the minium age, then it is too neweer
+                                    if seconds < bot_minVideoAge:
+                                        print '!!! Video is newer than ' + bot_minVideoAgeTxt + ' !!!!'
+                                        reasons.append('* Your submission violates rule #1, no videos uploaded to YouTube in the past ' + bot_minVideoAgeTxt + ' are allowed. ')
+                                    # If the video has more view than the max view count, then it is not allowed
+                                    if hasattr(entry.statistics, 'view_count') and float(entry.statistics.view_count) > bot_maxViewCount:
+                                        print '!!! Video has been viewed more than ' + str(bot_maxViewCount) + ' times !!!!'
+                                        reasons.append('* Your submission violates rule #2, no YouTube videos with greater than ' + bot_maxViewCountTxt + ' views are allowed. ')
+                                    # Check if the link is to a banned YouTube channel
+                                    if entry.author[0].name.text.lower() in (banname.lower() for banname in yt_bannedchannels):
+                                        print '!!! Video is from a banned channel: ' + entry.author[0].name.text + ' !!!!'
+                                        reasons.append('* Your submission links to the ' + entry.author[0].name.text + ' YouTube channel which has been banned in /r/' + r_subredit + '. ')
+                                        
                         else:
+                            # after all that, this probably not a YouTube link
                             print '!!!! Submission does not contain valid youtube link !!!'
                             reasons.append('* Your submission does not appear to contain a link to YouTube. Only direct links to YouTube videos are allowed. Links to any site other than YouTube are prohibited.')
+                        # If we have indicated there are any reasons to remove this post, it's time to do that
                         if len(reasons) > 0:
+                            # built modcommenttxt wityh all the reasons
                             modcommenttxt = "Your submission has been automatically removed for the following reason(s):\n\n"
                             for reason in reasons:
                                 modcommenttxt += str(reason) + "\n\n"
-                            modcommenttxt += "\n\nPlease review the subreddit rules. If you believe your submission has been removed in error, [message the moderators](http://www.reddit.com/message/compose?to=%2Fr%2FDeepIntoYouTube) as replies to this comment or PM's to /u/deepmodbot will not be read by the moderators."
+                            modcommenttxt += "\n\nPlease review the subreddit rules. If you believe your submission has been removed in error, [message the moderators](http://www.reddit.com/message/compose?to=%2Fr%2F" + r_subredit + ") as replies to this comment or PM's to /u/" + r_user + " will not be read by the moderators."
                             print 'Submission Info:'
                             pprint(submission.url)
                             pprint(submission.permalink)
@@ -175,6 +260,7 @@ while True:
                                 print 'Video view count: %s' % entry.statistics.view_count
                             except:
                                 pass
+                            # Try to distinguished comment on the cubmission and remove it
                             try:
                                 modcomment = submission.add_comment(modcommenttxt)
                                 modcomment.distinguish(as_made_by='mod')
@@ -187,12 +273,17 @@ while True:
                                 print 'Submission removed!'
                                 print 'time: ' + time.strftime("%c")
                                 print ''
+                    # Update the list of already processed submissions, even if there were erros so we dont get stuck in endless loops.
                     already_done.append(submission.id)
         except:
+            # How the hell did this happen with all those try/excepts?
             e = sys.exc_info()[0]
             print '**Main For loop failed: %s' % str(e)
             print 'time: ' + time.strftime("%c")
             print ''
+    # Time to sleep again before the next loop itteration.
     loopend = time.time()
-    sleepfor = max(0.0, 30.0 - (loopend - loopstart))
+    sleepfor = max(0.0, bot_sleepsec - (loopend - loopstart))
     time.sleep(sleepfor)
+
+## Main Loop - End
