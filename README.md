@@ -10,19 +10,23 @@ This simple bot runs on python 2.7. It requires the gdata and praw libraries. It
 This script repeats a loop where it pulls the newest 100 submissions and checks the URL against YouTube data to see if the video has been uploaded in less than 4.7 months or has been viewed more than 100,000 times and removes them if they meet that criteria. 
 
 * http://www.reddit.com/r/DeepIntoYouTube/
-* https://praw.readthedocs.org/en/v2.1.16/
+* https://praw.readthedocs.org/en/v2.1.21/
 * https://developers.google.com/gdata/articles/python_client_lib
+
+This is verified working with Python 2.7.5, PRAW 2.1.21, and gdata 2.0.18 on CentOS 7.0.
 
 # Installation
 
-1. Install the gdata and praw python libraries.
-  * `pip install gdata; pip install praw`
+1. Install openssl-devel, python-devel, and libffi-devel OS packages.
+2. Install the gdata and praw python libraries.
+  * `pip install gdata; pip install praw; pip install pyopenssl ndg-httpsclient pyasn1`
 2. Download the `modbot.py` `modbot.conf` and to a directory of your chosing
 3. Modify `modbot.conf` to suit your needs
 
 # Execution
 
 1. Execute `python modbot.py`
+2. Ignore the UserWarning...
 4. Sit back and watch the output
 
 To stop execution, kill the process or press `Ctrl+C`
