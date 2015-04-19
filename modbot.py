@@ -185,7 +185,7 @@ while True:
                                 # AND make sure this post is not a top post itself
                                 if ytvid in topsubmissionvids and submission.id not in topsubmissionsids:
                                     print '!!!! Repost of a top ' + str(bot_topSubsLimit) + ' submission !!!'
-                                    reasons.append('* This video is in the [top ' + bot_topSubsLimit +'](http://www.reddit.com/r/'+ r_subredit +'/top/?sort=top&t=all) submission of all time in this sub. ')
+                                    reasons.append('* This video is in the [top ' + str(bot_topSubsLimit) +'](http://www.reddit.com/r/'+ r_subredit +'/top/?sort=top&t=all) submission of all time in this sub. ')
                                 try:
                                     # Take a break before searching for reposts, but only if not enough time since the last search has passed.
                                     sleepfor = max(0.0, bot_sleepsec - (time.time() - loopstart))
@@ -283,6 +283,15 @@ while True:
             e = sys.exc_info()[0]
             print '**Main For loop failed: %s' % str(e)
             print 'time: ' + time.strftime("%c")
+            print 'Submission Info:'
+            try:
+                pprint(submission.url)
+                pprint(submission.permalink)
+                pprint(submission.title)
+                pprint(submission.author)
+                already_done.append(submission.id)
+            except:
+                pass
             print ''
     # Time to sleep again before the next loop itteration.
     loopend = time.time()
