@@ -11,6 +11,7 @@ from urlparse import parse_qs
 import gdata.youtube
 import gdata.youtube.service
 import sys
+import string, re
 ## Import Modules - End
 
 ## Settings - Start
@@ -48,21 +49,22 @@ def video_id(value):
     - http://www.youtube.com/v/SA2iWivDJiE?version=3&amp;hl=en_US
     """
     query = urlparse(value)
+    pattern = re.compile('[^\w-].*$')
     if query.hostname == 'youtu.be':
-        return query.path[1:]
+        return pattern.sub('',query.path[1:])
     if query.hostname in yt_hostnames:
         if query.path == '/watch' or query.path == '/movie':
             p = parse_qs(query.query)
-            return p['v'][0]
+            return pattern.sub('',p['v'][0])
         if query.path == '/attribution_link':
             p = parse_qs(query.query)
             p = urlparse(p['u'][0])
             p = parse_qs(p.query)
-            return p['v'][0]
+            return pattern.sub('',p['v'][0])
         if query.path[:7] == '/embed/':
-            return query.path.split('/')[2]
+            return pattern.sub('',query.path.split('/')[2])
         if query.path[:3] == '/v/':
-            return query.path.split('/')[2]
+            return pattern.sub('',query.path.split('/')[2])
     # fail?
     raise ValueError('No video ID could be extracted from URL %s' % value)
 
@@ -218,6 +220,7 @@ while True:
                                     entry = yt_service.GetYouTubeVideoEntry(video_id=ytvid)
                                 except:
                                     print '**Youtube look up for %s failed!' % str(ytvid)
+                                    reasons.append('* I was unable to locate data on the YouTube video. Perhaps the URL is malformed or the video is video is no longer available. ')
                                     pprint(submission.url)
                                     pprint(submission.permalink)
                                     print 'time: ' + time.strftime("%c")
