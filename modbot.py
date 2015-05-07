@@ -1,5 +1,7 @@
 ## Import Modules - Start
-# These two lines will set urllib3 to use PyOpenSSL which will disable the InsecurePlatformWarning
+# These two lines will set urllib3 to use PyOpenSSL which will disable the InsecurePlatformWarning#
+import signal
+import sys
 import urllib3.contrib.pyopenssl
 urllib3.contrib.pyopenssl.inject_into_urllib3()
 import praw
@@ -8,11 +10,20 @@ import datetime
 from pprint import pprint
 from urlparse import urlparse
 from urlparse import parse_qs
-import gdata.youtube
-import gdata.youtube.service
-import sys
 import string, re
+from apiclient.discovery import build
+
 ## Import Modules - End
+
+## Signal Handling - Start
+
+def signal_handler(signal, frame):
+    print ' '
+    print 'Exiting!'
+    sys.exit(0)
+signal.signal(signal.SIGINT, signal_handler)
+
+## Signal Handling - End
 
 ## Settings - Start
 # This is the name of the modbot config file
@@ -73,16 +84,9 @@ def video_id(value):
 ## API Initializations - Start
 #YouTube API initialization
 try:
-    yt_service = gdata.youtube.service.YouTubeService()
-    yt_service.ssl = True
-    yt_service.developer_key = yt_developer_key
-    yt_service.email = yt_email
-    yt_service.password = yt_password
-    yt_service.source = yt_source
-    yt_service.ProgrammaticLogin()
+    yt_service = build(yt_api_service_name, yt_api_version, developerKey=yt_developer_key)
 except:
-    print '!!!! Unable to login to youtube API !!!'
-    print 'Enable less secure apps if login fails: https://www.google.com/settings/security/lesssecureapps'
+    print '!!!! Unable to initialize to youtube API !!!'
     exit()
 # Reddit API initialization
 try:     
@@ -217,7 +221,7 @@ while True:
                                                 break
                                 try:
                                     # Try to get the YouTube API data for the current submissions video ID
-                                    entry = yt_service.GetYouTubeVideoEntry(video_id=ytvid)
+                                    entry = yt_service.videos().list(id=ytvid, part='snippet,statistics').execute()
                                 except:
                                     print '**Youtube look up for %s failed!' % str(ytvid)
                                     reasons.append('* I was unable to locate data on the YouTube video. Perhaps the URL is malformed or the video is video is no longer available. ')
@@ -226,24 +230,32 @@ while True:
                                     print 'time: ' + time.strftime("%c")
                                     print ''
                                 else:
-                                    # Determins the age of the youtube video
-                                    _tmp = time.strptime(entry.published.text, '%Y-%m-%dT%H:%M:%S.000Z')
-                                    ptime = datetime.datetime(*_tmp[:6])
-                                    now = datetime.datetime.now()
-                                    tdelta = now - ptime
-                                    seconds = tdelta.total_seconds()
-                                    # if the age of the video is less than the minium age, then it is too neweer
-                                    if seconds < bot_minVideoAge:
-                                        print '!!! Video is newer than ' + bot_minVideoAgeTxt + ' !!!!'
-                                        reasons.append('* Your submission violates rule #1, no videos uploaded to YouTube in the past ' + bot_minVideoAgeTxt + ' are allowed. ')
-                                    # If the video has more view than the max view count, then it is not allowed
-                                    if hasattr(entry.statistics, 'view_count') and float(entry.statistics.view_count) > bot_maxViewCount:
-                                        print '!!! Video has been viewed more than ' + str(bot_maxViewCount) + ' times !!!!'
-                                        reasons.append('* Your submission violates rule #2, no YouTube videos with greater than ' + bot_maxViewCountTxt + ' views are allowed. ')
-                                    # Check if the link is to a banned YouTube channel
-                                    if entry.author[0].name.text.lower() in (banname.lower() for banname in yt_bannedchannels):
-                                        print '!!! Video is from a banned channel: ' + entry.author[0].name.text + ' !!!!'
-                                        reasons.append('* Your submission links to the ' + entry.author[0].name.text + ' YouTube channel which has been banned in /r/' + r_subredit + '. ')
+                                    if not entry["items"]:
+                                        print '**Youtube look up for %s failed!' % str(ytvid)
+                                        reasons.append('* I was unable to locate data on the YouTube video. Perhaps the URL is malformed or the video is video is no longer available. ')
+                                        pprint(submission.url)
+                                        pprint(submission.permalink)
+                                        print 'time: ' + time.strftime("%c")
+                                        print ''
+                                    else:
+                                        # Determins the age of the youtube video
+                                        _tmp = time.strptime(entry["items"][0]["snippet"]["publishedAt"], '%Y-%m-%dT%H:%M:%S.000Z')
+                                        ptime = datetime.datetime(*_tmp[:6])
+                                        now = datetime.datetime.now()
+                                        tdelta = now - ptime
+                                        seconds = tdelta.total_seconds()
+                                        # if the age of the video is less than the minium age, then it is too neweer
+                                        if seconds < bot_minVideoAge:
+                                            print '!!! Video is newer than ' + bot_minVideoAgeTxt + ' !!!!'
+                                            reasons.append('* Your submission violates rule #1, no videos uploaded to YouTube in the past ' + bot_minVideoAgeTxt + ' are allowed. ')
+                                        # If the video has more view than the max view count, then it is not allowed
+                                        if float(entry["items"][0]["statistics"]["viewCount"]) > bot_maxViewCount:
+                                            print '!!! Video has been viewed more than ' + str(bot_maxViewCount) + ' times !!!!'
+                                            reasons.append('* Your submission violates rule #2, no YouTube videos with greater than ' + bot_maxViewCountTxt + ' views are allowed. ')
+                                        # Check if the link is to a banned YouTube channel
+                                        if entry["items"][0]["snippet"]["channelTitle"].lower() in (banname.lower() for banname in yt_bannedchannels):
+                                            print '!!! Video is from a banned channel: ' + entry["items"][0]["snippet"]["channelTitle"] + ' !!!!'
+                                            reasons.append('* Your submission links to the ' + entry["items"][0]["snippet"]["channelTitle"] + ' YouTube channel which has been banned in /r/' + r_subredit + '. ')
                                         
                         else:
                             # after all that, this probably not a YouTube link
@@ -262,8 +274,10 @@ while True:
                             pprint(submission.title)
                             pprint(submission.author)
                             try:
-                                print 'Video published on: %s ' % entry.published.text
-                                print 'Video view count: %s' % entry.statistics.view_count
+                                print 'Video ID: %s' % ytvid
+                                print 'Video published on: %s ' % entry["items"][0]["snippet"]["publishedAt"]
+                                print 'Video view count: %s' % entry["items"][0]["statistics"]["viewCount"]
+                                print 'Video channel: %s' % entry["items"][0]["snippet"]["channelTitle"]
                             except:
                                 pass
                             # Try to distinguished comment on the cubmission and remove it
