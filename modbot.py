@@ -1,7 +1,7 @@
 ## Import Modules - Start
 # These two lines will set urllib3 to use PyOpenSSL which will disable the InsecurePlatformWarning#
 import signal
-import sys
+import sys, os
 import urllib3.contrib.pyopenssl
 urllib3.contrib.pyopenssl.inject_into_urllib3()
 import praw
@@ -20,7 +20,7 @@ from apiclient.discovery import build
 def signal_handler(signal, frame):
     print ' '
     print 'Exiting!'
-    sys.exit(0)
+    os._exit(0)
 signal.signal(signal.SIGINT, signal_handler)
 
 ## Signal Handling - End
