@@ -1,17 +1,19 @@
 ## Import Modules - Start
 # These two lines will set urllib3 to use PyOpenSSL which will disable the InsecurePlatformWarning#
 import signal
-import sys, os
+import sys
+import os
 import urllib3.contrib.pyopenssl
-urllib3.contrib.pyopenssl.inject_into_urllib3()
 import praw
 import time
 import datetime
 from pprint import pprint
 from urlparse import urlparse
 from urlparse import parse_qs
-import string, re
+import string
+import re
 from apiclient.discovery import build
+import traceback
 
 ## Import Modules - End
 
@@ -26,8 +28,13 @@ signal.signal(signal.SIGINT, signal_handler)
 ## Signal Handling - End
 
 ## Settings - Start
+# Secrets come from the environment 
+YT_DEVELOPER_KEY = os.environ['GAPIK']
+R_PASSWORD = os.environ['MODBOTPASS']
+R_CLIENT_SECRET = os.environ['MODBOTCLIENTS']
+R_CLIENT_ID = os.environ['MODBOTCLIENTID']
 # This is the name of the modbot config file
-modbotSettingsFile = 'modbot.conf'
+MODBOT_SETTINGS_FILE = 'modbot.conf'
 ## Settings - End
 
 ## Function Definitions - Start
@@ -36,16 +43,16 @@ def modbotsettings():
     try:
         # Try to execfile on the settings file and load them into the globals
         # this is terrible coding, but I don't feel like making a proper settings function
-        execfile(modbotSettingsFile, globals())
+        execfile(MODBOT_SETTINGS_FILE, globals())
         return True
     except:
         # Failed to load the settings file
-        print '!!!! Syntax error in ' + modbotSettingsFile + ' !!!'
+        print '!!!! Syntax error in ' + MODBOT_SETTINGS_FILE + ' !!!'
         return False
 
 #Load the settings before continuing as they are used by just about everything
 if not modbotsettings():
-    print 'Unable to initilize settings. Exiting.'
+    print 'Unable to initialize settings. Exiting.'
     exit()
 
 # Function to determine the youtube video ID from a URL
@@ -82,17 +89,23 @@ def video_id(value):
 ## Function Definitions - End
     
 ## API Initializations - Start
-#YouTube API initialization
+# YouTube API initialization
 try:
-    yt_service = build(yt_api_service_name, yt_api_version, developerKey=yt_developer_key)
+    yt_service = build(yt_api_service_name, yt_api_version, developerKey=YT_DEVELOPER_KEY)
 except:
+    traceback.print_exc()
     print '!!!! Unable to initialize to youtube API !!!'
     exit()
+
 # Reddit API initialization
-try:     
-    r = praw.Reddit(r_praw)
-    r.login(r_user, r_password)
+try:
+    r = praw.Reddit(client_id = R_CLIENT_ID,
+                    client_secret = R_CLIENT_SECRET,
+                    user_agent = r_praw,
+                    username = r_user,
+                    password = R_PASSWORD)
 except:
+    traceback.print_exc()
     print '!!!! Unable to login to Reddit API !!!'
     exit()
 ## API Initializations - End
@@ -117,12 +130,12 @@ while True:
     # Update the settings
     modbotsettings()
     # create the subreddit object
-    subreddit = r.get_subreddit(r_subredit)
+    subreddit = r.subreddit(r_subredit)
     # If it has been long enough since the last top submission pull, pull them again
     if lasttopget < loopstart - bot_reloadTopSubsSec:
         print 'Getting top ' + str(bot_topSubsLimit) + ' submissions...'
         try:
-            topsubmissions = subreddit.get_top_from_all(limit=bot_topSubsLimit)
+            topsubmissions = list(subreddit.top(limit=bot_topSubsLimit))
         except:
             print '** Failed to get top sumissions'
             print 'time: ' + time.strftime("%c")
@@ -151,7 +164,7 @@ while True:
         time.sleep(sleepfor)
     # Try to pull the newest submissions
     try:
-                submissions = subreddit.get_new(limit=bot_subsLimit)
+                submissions = list(subreddit.new(limit=bot_subsLimit))
     except:
         e = sys.exc_info()[0]
         print '**get_new failed: %s' % str(e)
@@ -168,9 +181,9 @@ while True:
                     if submission.is_self:
                         print '!!! Selfpost !!!!'
                         print 'Permalink:' 
-                        pprint(submission.permalink)
-                        pprint(submission.title)
-                        pprint(submission.author)
+                        print 'link: https://www.reddit.com%s' % submission.permalink
+                        print 'title: %s' % submission.title
+                        print 'author: /u/%s' % submission.author.name
                         print 'time: ' + time.strftime("%c")
                         print ''
                     # ok, not a self post, so lets see if it's ok
@@ -197,9 +210,9 @@ while True:
                                     sleepfor = max(0.0, bot_sleepsec - (time.time() - loopstart))
                                     time.sleep(sleepfor)
                                     # Search the subreddit to see
-                                    searchres = list(r.search('url:"%s"' % str(ytvid) ,  subreddit=r_subredit))
+                                    searchres = list(subreddit.search('url:"%s"' % str(ytvid)))
                                 except:
-                                    e = sys.exc_info()[0]
+                                    traceback.print_exc()
                                     print '**Search failed! %s' % str(e)
                                     print 'time: ' + time.strftime("%c")
                                     print ''
@@ -216,25 +229,26 @@ while True:
                                                 print 'previous post:'
                                                 pprint(curres.url)
                                                 pprint(curres.permalink)
-                                                pprint(submission.title)
+                                                print 'title: %s' % submission.title
                                                 reasons.append("* This video has [already been posted in the last " + bot_repostMaxAgeTxt + "](http://www.reddit.com/r/" + r_subredit + "/search?q=url%3A%22" + str(ytvid) + "%22&restrict_sr=on).")
                                                 break
                                 try:
                                     # Try to get the YouTube API data for the current submissions video ID
                                     entry = yt_service.videos().list(id=ytvid, part='snippet,statistics').execute()
                                 except:
+                                    traceback.print_exc()
                                     print '**Youtube look up for %s failed!' % str(ytvid)
                                     reasons.append('* I was unable to locate data on the YouTube video. Perhaps the URL is malformed or the video is video is no longer available. ')
-                                    pprint(submission.url)
-                                    pprint(submission.permalink)
+                                    print 'url: %s' % submission.url
+                                    print 'link: https://www.reddit.com%s' % submission.permalink
                                     print 'time: ' + time.strftime("%c")
                                     print ''
                                 else:
                                     if not entry["items"]:
                                         print '**Youtube look up for %s failed!' % str(ytvid)
                                         reasons.append('* I was unable to locate data on the YouTube video. Perhaps the URL is malformed or the video is video is no longer available. ')
-                                        pprint(submission.url)
-                                        pprint(submission.permalink)
+                                        print 'url: %s' % submission.url
+                                        print 'link: https://www.reddit.com%s' % submission.permalink
                                         print 'time: ' + time.strftime("%c")
                                         print ''
                                     else:
@@ -269,10 +283,10 @@ while True:
                                 modcommenttxt += str(reason) + "\n\n"
                             modcommenttxt += "\n\nPlease review the subreddit rules. If you believe your submission has been removed in error, [message the moderators](http://www.reddit.com/message/compose?to=%2Fr%2F" + r_subredit + ") as replies to this comment or PM's to /u/" + r_user + " will not be read by the moderators."
                             print 'Submission Info:'
-                            pprint(submission.url)
-                            pprint(submission.permalink)
-                            pprint(submission.title)
-                            pprint(submission.author)
+                            print 'url: %s' % submission.url
+                            print 'link: https://www.reddit.com%s' % submission.permalink
+                            print 'title: %s' % submission.title
+                            print 'author: /u/%s' % submission.author.name
                             try:
                                 print 'Video ID: %s' % ytvid
                                 print 'Video published on: %s ' % entry["items"][0]["snippet"]["publishedAt"]
@@ -282,11 +296,12 @@ while True:
                                 pass
                             # Try to distinguished comment on the cubmission and remove it
                             try:
-                                modcomment = submission.add_comment(modcommenttxt)
-                                modcomment.distinguish(as_made_by='mod')
-                                submission.remove(spam=False)
+                                modcomment = submission.reply(modcommenttxt)
+                                modcomment.mod.distinguish(how='yes', sticky=True)
+                                submission.mod.remove(spam=False)
                             except:
                                 print 'time: ' + time.strftime("%c")
+                                traceback.print_exc()
                                 print '** Comment or removal failed! link possibly deleted by user during checks.'
                                 print ''
                             else:
@@ -302,10 +317,10 @@ while True:
             print 'time: ' + time.strftime("%c")
             print 'Submission Info:'
             try:
-                pprint(submission.url)
-                pprint(submission.permalink)
-                pprint(submission.title)
-                pprint(submission.author)
+                print 'url: %s' % submission.url
+                print 'link: https://www.reddit.com%s' % submission.permalink
+                print 'title: %s' % submission.title
+                print 'author: /u/%s' % submission.author.name
                 already_done.append(submission.id)
             except:
                 pass

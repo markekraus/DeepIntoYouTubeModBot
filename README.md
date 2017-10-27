@@ -17,10 +17,10 @@ This is verified working with Python 2.7.5, PRAW 2.1.21, and google-api-python-c
 
 # Installation
 
-1. Install openssl-devel, python-devel, and libffi-devel OS packages.
-2. Install the google-api-python-client and praw python libraries.
+1. Install `openssl-devel`, `python-devel`, and `libffi-devel` OS packages.
+2. Install the `google-api-python-client` and `praw` python libraries.
   * `pip install google-api-python-client; pip install praw; pip install pyopenssl ndg-httpsclient pyasn1`
-2. Download the `modbot.py` `modbot.conf` and to a directory of your chosing
+2. Download the `modbot.py` `modbot.conf` and to a directory of your choosing
 3. Modify `modbot.conf` to suit your needs
 
 # Execution
@@ -33,7 +33,7 @@ To stop execution, kill the process or press `Ctrl+C`
 
 # Checks
 
-1. Checks if video is a valid YouTube and peoperly fomated URL
+1. Checks if video is a valid YouTube and properly formated URL
 2. Checks if video is in the top 100 all time submissions
 3. Checks if video has already been posted in past 3 months
 4. Checks if the video has over 100,000 views
