@@ -253,7 +253,7 @@ while True:
                                         print ''
                                     else:
                                         # Determins the age of the youtube video
-                                        _tmp = time.strptime(entry["items"][0]["snippet"]["publishedAt"], '%Y-%m-%dT%H:%M:%S.000Z')
+                                        _tmp = time.strptime(entry["items"][0]["snippet"]["publishedAt"], '%Y-%m-%dT%H:%M:%SZ')
                                         ptime = datetime.datetime(*_tmp[:6])
                                         now = datetime.datetime.now()
                                         tdelta = now - ptime
@@ -312,8 +312,9 @@ while True:
                     already_done.append(submission.id)
         except:
             # How the hell did this happen with all those try/excepts?
-            e = sys.exc_info()[0]
+            e, u, l  = sys.exc_info()
             print '**Main For loop failed: %s' % str(e)
+            print 'Line No: %s' % str(l.tb_lineno)
             print 'time: ' + time.strftime("%c")
             print 'Submission Info:'
             try:
